@@ -50,7 +50,8 @@ jobs:
           # プルリク作成。
           gh pr create \
             -B feature/marge-verify-1 \
-            -t '【feature/trigger-branch-1 → feature/marge-verify-1:自動プルリク】${{ steps.check_pull_request.outputs.message }}'
+            -t '【feature/trigger-branch-1 → feature/marge-verify-1:自動プルリク】${{ steps.check_pull_request.outputs.message }}' \
+            -b 'feature/trigger-branch-1からfeature/marge-verify-1へのプルリク（自動生成）。'
 
       # オープン中の特定タイトルのプルリクに対して追加コミットなどがあったら実行。
       - name: edit pull request
