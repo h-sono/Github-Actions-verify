@@ -1,0 +1,62 @@
+on:
+  push:
+    branches:
+    - develop
+    - master
+    - stg-master
+    - hotfix
+    - stg-hotfix
+    - feature/*
+    - feature/trigger-branch-1
+    - feature/marge-verify-1
+
+jobs:
+  # プルリク自動生成ジョブ。
+  create-auto-pull-request:
+    if: ${{ github.ref_name == 'feature/trigger-branch-1' && success() }}
+    # ランナーはubuntuを使用。 
+    runs-on: ubuntu-latest
+
+    env:
+      # Github CLIからのプルリク作成時にgit auth loginコマンドを実行する必要があるが、
+      # 認証用トークンを取得すれば必要なし。
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      # ソースコードにチェックアウト。
+      - uses: actions/checkout@v3
+
+      # すでに自動生成したプルリク(オープン中)が存在するか確認。
+      - name: check pull request exists
+        # 本ジョブの変数を他のジョブでも使用するためidを定義。
+        id: check_pull_request
+        env:
+          # ジョブが作動するトリガーとなるブランチのヘッドコミットを取得。
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          # コミットメッセージの1行目を取得。
+          COMMIT_MESSAGE=$(echo "${HEAD_MESSAGE}" | sed -n -e 1p)
+          # 取得したコミットメッセージをmessageに格納。$GITHUB_OUTPUTに出力すると他のジョブで呼び出せる。
+          # ※${{ steps.check_pull_request.outputs.message }} のように呼び出せる。
+          echo "message=${COMMIT_MESSAGE}" >> "$GITHUB_OUTPUT"
+          # gh pr listはGithub CLI。オープン中のプルリク一覧から特定のタイトルのプルリクを抽出。
+          echo "count=$(gh pr list -S '【feature/trigger-branch-1 → feature/marge-verify-1:自動プルリク】'in:title | wc -l)" >> "$GITHUB_OUTPUT"
+
+      # プルリク自動生成。
+      - name: create pull request
+        # オープン中の特定タイトルのプルリクが0件だった場合ジョブ実行。
+        if: ${{ steps.check_pull_request.outputs.count == 0 }}
+        run: |
+          # プルリク作成。
+          gh pr create \
+            -B feature/marge-verify-1 \
+            -t '【feature/trigger-branch-1 → feature/marge-verify-1:自動プルリク】${{ steps.check_pull_request.outputs.message }}' \
+
+      # オープン中の特定タイトルのプルリクに対して追加コミットなどがあったら実行。
+      - name: edit pull request
+        # オープン中の特定タイトルのプルリクが1件以上だった場合ジョブ実行。
+        if: ${{ steps.check_pull_request.outputs.count != 0 }}
+        run: |
+          # プルリクの編集。
+          gh pr edit  ${{ github.ref_name }} \
+            -t "'【feature/trigger-branch-1 → feature/marge-verify-1:自動プルリク】' ${{ steps.check_pull_request.outputs.message }}"
