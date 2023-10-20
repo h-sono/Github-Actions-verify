@@ -7,10 +7,20 @@ on:
     - hotfix
     - stg-hotfix
     - feature/*
-    - feature/trigger-branch-1
-    - feature/marge-verify-1
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.7.0'
+      - run: npm install
+
   # プルリク自動生成ジョブ。
   create-auto-pull-request:
     if: ${{ github.ref_name == 'feature/trigger-branch-1' && success() }}
